@@ -1,48 +1,118 @@
-  const AudioContext = window.AudioContext || window.webkitAudioContext;
-  const audioCtx = new AudioContext();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+  <p id="currentValue"></p>
+  <button id="inc">+</button>
+  <button id="playToggle">Play 440Hz</button>
+  <button id="dec">-</button>
+  <script>
+    class FunctionGenerator extends EventTarget {
+      constructor(initialValue = 0) {
+        super();
+        this.value = initialValue;
+        this.muted = true;
+        this.playedForFirstTime = false;
+        this.initAudio();
+      }
 
-  // create Oscillator and gain node
-  const oscillator = audioCtx.createOscillator();
-  const gainNode = audioCtx.createGain();
+      initAudio() {
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-  // connect oscillator to gain node to speakers
-  oscillator.connect(gainNode);
-  gainNode.connect(audioCtx.destination);
+        // create Oscillator and gain node
+        this.oscillator = this.audioCtx.createOscillator();
+        this.gainNode = this.audioCtx.createGain();
 
+        // connect oscillator to gain node to speakers
+        this.oscillator.connect(this.gainNode);
+        this.gainNode.connect(this.audioCtx.destination);
 
-const maxFreq = 6000;
-  const maxVol = 0.02;
-  const initialVol = 0.001;
+        this.oscillator.frequency.value = this.value;
+        this.gainNode.gain.value = 1;
 
-  // set options for the oscillator
-  oscillator.detune.value = 100; // value in cents
-  oscillator.start(0);
+        // set options for the oscillator
+        // oscillator.detune.value = 100; // value in cents
 
-  oscillator.onended = function () {
-    console.log("Your tone has now stopped playing!");
-  };
+        // gainNode.gain.value = initialVol;
+        // gainNode.gain.minValue = initialVol;
+        // gainNode.gain.maxValue = initialVol;
 
-  gainNode.gain.value = initialVol;
-  gainNode.gain.minValue = initialVol;
-  gainNode.gain.maxValue = initialVol;
+        // this is like the automation in DAW
+        // gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime + 0);
+        // gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime + 1);
 
+        this.oscillator.onended = function () {
+          console.log("Your tone has now stopped playing!");
+        };
+      }
 
-oscillator.frequency.value = (CurX / WIDTH) * maxFreq;
-    gainNode.gain.value = (CurY / HEIGHT) * maxVol;
+      // private method starts with "#"
+      #emitChangeEvent() {
+        this.dispatchEvent(new CustomEvent("valuechange", { detail: this.value }));
+      }
 
+      increment() {
+        this.value++;
+        this.oscillator.frequency.value = this.value;
+        this.#emitChangeEvent();
+      }
 
+      decrement() {
+        this.value--;
+        this.oscillator.frequency.value = this.value;
+        this.#emitChangeEvent();
+      }
 
-  // mute button
-  const mute = document.querySelector(".mute");
+      playSound() {
+        this.muted = false;
+        this.gainNode.connect(this.audioCtx.destination);
+      }
 
-  mute.onclick = function () {
-    if (mute.getAttribute("data-muted") === "false") {
-      gainNode.disconnect(audioCtx.destination);
-      mute.setAttribute("data-muted", "true");
-      mute.innerHTML = "Unmute";
-    } else {
-      gainNode.connect(audioCtx.destination);
-      mute.setAttribute("data-muted", "false");
-      mute.innerHTML = "Mute";
+      stopSound() {
+        this.muted = true;
+        this.gainNode.disconnect(this.audioCtx.destination);
+      }
+
+      togglePlaySound() {
+        if (!!this.muted) {
+          if (!this.playedForFirstTime) {
+            this.oscillator.start(0);
+            this.playedForFirstTime = true;
+            this.muted = false;
+          } else {
+            this.playSound();
+          }
+        } else {
+          this.stopSound();
+        }
+      }
     }
-  };
+
+
+
+    const initialValue = 440;
+
+    const functionGenerator = new FunctionGenerator(initialValue);
+    document.getElementById("currentValue").innerText = initialValue;
+
+    functionGenerator.addEventListener("valuechange", (event) => {
+      document.getElementById("currentValue").innerText = event.detail;
+    });
+
+    document.getElementById("playToggle").addEventListener("click", function () {
+      functionGenerator.togglePlaySound();
+    });
+
+    document.getElementById("inc").addEventListener("click", () => {
+      functionGenerator.increment();
+    });
+
+    document.getElementById("dec").addEventListener("click", () => {
+      functionGenerator.decrement();
+    });
+  </script>
+</body>
+</html>
